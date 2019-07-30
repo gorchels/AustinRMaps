@@ -18,70 +18,62 @@ library(spatstat)
 library(maptools)
 library(sp)
 library(raster)
-#library(beepr)
+library(beepr)
 library(RColorBrewer)
 library(stargazer)
 
 ```
 
+
 ```{r, include = FALSE}
 tree_prioritization <- st_read(dsn = ".", layer = "geo_export_2e82f388-c013-45a0-bb25-522154013165") %>% 
    st_transform(crs = 4326)
-
-tree_map = raster("tree_canopy_2010.tif") 
 
 Wallercreek <- st_read(dsn = ".", layer = "WallerCrk") %>% 
    st_transform(crs = 4326) 
 
 Wallercensus <- st_read(dsn = ".", layer = "wallercensus") %>% 
    st_transform(crs = 4326) 
+
+plot(tree_prioritization, max.plot= 13)
+beep(3)
 ```
 
 
+
 ```{r, include=FALSE}
-#plot(tree_map)
 
 tree_prioritization_uhi = tree_prioritization %>% 
   dplyr::select(uhi) %>% 
   mutate(Intensity = uhi)
 
-#%>% 
-  #mutate(census_id = 1:200) %>% 
-  #mutate(treecount = freq)
-#tree_prior_r =raster(tree_prioritization_uhi, vals = tree_prioritization$uhi)
-
-#beep(3)
 ```
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 #tmap_mode("view")
 #tm_basemap("Esri.WorldStreetMap")+
 #  tm_shape(tree_prioritization_uhi)+
-# tm_fill("Intensity", low = "oldlace", high = "red4", alpha = 0.6)+
+# tm_fill("Intensity", alpha = 0.6)+
 # tm_legend(title ="Relative Urban Heat Island Intensity by Census Tract")
 ```
 
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 air_palette = c("orchid4","cornflowerblue")
-
+uhi_palette = c("oldlace", "red4")
 tmap_mode("view")
 tm_basemap("Esri.WorldImagery")+
   tm_shape(tree_prioritization_uhi)+
-  tm_fill("Intensity", low = "oldlace", high = "red4", alpha = 0.7)+
+  tm_fill("Intensity", alpha = 0.7)+
   tm_legend(title ="Relative Urban Heat Island Intensity by Census Tract")+
   tm_shape(Wallercreek)+
-  tm_borders(col = "black", lwd = 1)+
-  tm_shape(tree_prioritization)+
-  tm_fill("air_qual", palette = air_palette, alpha = 0.7)
- 
- # tm_shape(tree_map_shape)#+
-  #tm_dots("DN", palette = "darkgreen")
+  tm_borders(col = "black", lwd = 1)#+
+  #tm_shape(tree_prioritization)+
+  #tm_fill("air_qual", palette = air_palette, alpha = 0.7) To add aditional layers to the tmap file 
+
 ```
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
-#leaflet(tree_prioritization_uhi) %>% #need to change the coordinate reference system to match
- # addPolygons()
 
 
 uhi_plot = ggplot(tree_prioritization_uhi)+
@@ -98,6 +90,7 @@ uhi_plot = ggplot(tree_prioritization_uhi)+
 
 uhi_plot
 ```
+
 ```{r, echo=FALSE}
 
 mapRange <- c(range(st_coordinates(Wallercreek)[,1]),range(st_coordinates(Wallercreek)[,2]))
@@ -105,7 +98,6 @@ mapRange <- c(range(st_coordinates(Wallercreek)[,1]),range(st_coordinates(Waller
 uhi_plot_waller = ggplot(tree_prioritization_uhi)+
   geom_sf(aes(fill = uhi))+
   scale_fill_gradient("Comparitive Intensity", low = "oldlace", high = "red4")+
-  #coord_sf(xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])+
   labs(x = "", y = "", title = "Comparitive Urban Heat Island of Census \nTracts Based off Land Surface Temperature")+
   geom_sf(data = Wallercreek, 
           fill = "NA", 
