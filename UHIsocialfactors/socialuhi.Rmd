@@ -1,0 +1,217 @@
+---
+title: "Urban Heat Island, Tree Cover, and the 2017 American Community Survey"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, include = FALSE, comment=" "}
+library(tidyverse)
+library(sf)
+library(leaflet)
+library(tmap)
+library(spatstat)
+library(maptools)
+library(sp)
+library(raster)
+#library(beepr)
+library(RColorBrewer)
+library(stargazer)
+library(janitor)
+library(rgdal)
+
+```
+
+```{r, include = FALSE}
+census_tree = st_read(dsn = ".", layer = "countingtrees") %>%
+  st_transform(crs = 4326) %>% 
+  mutate(geoid = as.numeric(geoid10)) %>% 
+  dplyr::select(-geoid10)
+
+social_demo = read_csv("censustractdemos.csv") %>% 
+  mutate(geoid10 = Id2) %>% 
+  clean_names() %>% 
+  mutate(median_income = as.numeric(median_income))
+```
+
+
+```{r, include=FALSE}
+tree_raw = read_csv("tree_planting_prioritization.csv") %>% 
+  clean_names()
+
+tract_matching = full_join(census_tree, tree_raw, by="health")
+
+social_prior = full_join(tree_raw, social_demo, by = "geoid10") %>% 
+  filter(!is.na(id2)) %>% 
+  filter(!is.na(shape_area))%>% 
+  dplyr::select(-the_geom) 
+
+census_social = full_join(census_tree, social_prior, by="health") %>% 
+  dplyr::select(geoid10, air_qual.x, critical_p.x, district.x, ej.x, health, preserve.x, replenish.x, score.x, shape_area.x, uhi.x, water_qual.x, tree_sum, total_population, median_income, commuting, x62andover, white, black, native_am, asian, pacific_islander, latinx) %>% 
+  #filter(!is.na(geoid10.y)) %>% 
+  filter(!is.na(uhi.x)) %>% 
+  mutate(tree_intensity = tree_sum/shape_area.x)
+```
+
+
+```{r, include = FALSE}
+
+Wallercreek <- st_read(dsn = ".", layer = "WallerCrk") %>% 
+   st_transform(crs = 4326) 
+
+mapRange <- c(range(st_coordinates(Wallercreek)[,1]),range(st_coordinates(Wallercreek)[,2]))
+
+```
+
+
+```{r, include=FALSE}
+#tmap_mode("view")
+#tm_basemap("OpenStreetMap.Mapnik")+
+#  tm_shape(census_social)+
+#  tm_fill("median_income", low = "oldlace", high = "red4", alpha = 0.7)+
+#  tm_legend(title ="Median Income by Census Tract")+
+#  tm_shape(Wallercreek)+
+#  tm_borders(col = "black", lwd = 1)
+```
+
+
+Several census tracts were missing from the American Community Survey data download. I am sure this data exists, missing tracts will need to be individually searched for and added to the dataset. 
+```{r, echo=FALSE}
+income_plot = ggplot(census_social)+
+  geom_sf(aes(fill = median_income))+
+  scale_fill_gradient("Income", low = "lightcyan", high = "orchid4")+
+  #coord_sf(xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])+
+  labs(x = "", y = "", title = "Median Income in 2017")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  #coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])
+  coord_sf(datum=NA)
+
+income_plot 
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
+income_plot_waller = ggplot(census_social)+
+  geom_sf(aes(fill = median_income))+
+  scale_fill_gradient("Income", low = "lightcyan", high = "orchid4")+
+  #coord_sf(xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])+
+  labs(x = "", y = "", title = "Median Income in 2017")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])
+  #coord_sf(datum=NA)
+
+income_plot_waller 
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
+#income_regress = lm(median_income~tree_intensity, data = census_social)
+#summary(income_regress)
+
+ggplot(census_social)+
+  geom_point(aes(x = tree_intensity,y=median_income))+
+  theme_classic()+
+  labs(title = "Relationship Between Median Income and Simulated \nTree Canopy by Austin Census Tract", y = "Median Income in 2017", x = "Simulated Tree Intensity")+
+  geom_smooth(method = "lm", aes(x = tree_intensity,y=median_income))+
+  geom_text(x = 1.0e-07, y = 150000, aes(label = "*** R Squared = 0.30"))+
+  scale_x_continuous()
+
+```
+```{r, echo=FALSE, warning=FALSE}
+#income_uhi_regress = lm(median_income~uhi.x, data = census_social)
+#summary(income_uhi_regress)
+
+ggplot(census_social)+
+  geom_point(aes(x = uhi.x,y=median_income))+
+  theme_classic()+
+  labs(title = "Relationship Between Median Income and Land \nSurface Temperature by Austin Census Tract", y = "Median Income in 2017", x = "Comparative Land Surface Temperature")+
+  geom_smooth(method = "lm", aes(x = uhi.x,y=median_income))+
+  geom_text(x = 0.10, y = 50000, aes(label = "*** R Squared = 0.25"))+
+  scale_x_continuous()
+```
+
+
+```{r,include = FALSE}
+racial_makeup = census_social %>% 
+  mutate(white_p = white/total_population) %>% 
+  mutate(black_p = black/total_population) %>% 
+  mutate(latinx_p = latinx/total_population) %>% 
+  mutate(native_am_p = native_am/total_population) %>% 
+  mutate(asian_p = asian/total_population) %>% 
+  mutate(pacific_islander_p = pacific_islander/total_population) %>% 
+  mutate(nonwhite = black_p+asian_p+latinx_p+pacific_islander_p+native_am_p)
+```
+
+
+```{r, echo=FALSE,warning=FALSE}
+race_plot = ggplot(racial_makeup)+
+  geom_sf(aes(fill = nonwhite))+
+  scale_fill_gradient("nonwhite", low = "white", high = "chocolate")+
+  #coord_sf(xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])+
+  labs(x = "", y = "", title = "Proportion Non White in 2017")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  #coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])
+  coord_sf(datum=NA)
+
+race_plot
+```
+
+```{r, echo=FALSE,warning=FALSE}
+race_plot_waller = ggplot(racial_makeup)+
+  geom_sf(aes(fill = nonwhite))+
+  scale_fill_gradient("nonwhite", low = "white", high = "chocolate")+
+  #coord_sf(xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])+
+  labs(x = "", y = "", title = "Proportion Non White in 2017")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])
+  #coord_sf(datum=NA)
+
+race_plot_waller
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
+#race_uhi_regress = lm(nonwhite~uhi.x, data = racial_makeup)
+#summary(race_uhi_regress)
+
+ggplot(racial_makeup)+
+  geom_point(aes(x = uhi.x,y=nonwhite))+
+  theme_classic()+
+  labs(title = "Relationship Between Proportion Non White and Land \nSurface Temperature by Austin Census Tract", y = "Proportion Non White in 2017", x = "Comparative Land Surface Temperature")+
+  geom_smooth(method = "lm", aes(x = uhi.x,y=nonwhite))+
+  geom_text(x = 0.10, y = 0.4, aes(label = "*** R Squared = 0.11"))+
+  scale_x_continuous()
+```
+
+```{r, echo=FALSE, warning=FALSE}
+#race_regress = lm(nonwhite~tree_intensity, data = racial_makeup)
+#summary(race_regress)
+
+ggplot(racial_makeup)+
+  geom_point(aes(x = tree_intensity,y=nonwhite))+
+  theme_classic()+
+  labs(title = "Relationship Between Proportion Non White and Simulated \nTree Canopy by Austin Census Tract", y = "Proportion Non White in 2017", x = "Simulated Tree Intensity")+
+  geom_smooth(method = "lm", aes(x = tree_intensity,y=nonwhite))+
+  geom_text(x = 1.0e-07, y = 0.24, aes(label = "*** R Squared = 0.23"))+
+  scale_x_continuous()
+```
+
