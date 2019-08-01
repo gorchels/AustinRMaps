@@ -10,24 +10,24 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r, include = FALSE, comment=" "}
-library(tidyverse)
-library(sf)
-library(leaflet)
-library(tmap)
-library(spatstat)
-library(maptools)
-library(sp)
-library(raster)
-library(beepr)
-library(RColorBrewer)
-library(stargazer)
+library(tidyverse) #Standard data analysis package
+library(sf) #Allows for the opening and analysis of spatial files 
+library(leaflet) #Important for building interactive tmap tools
+library(tmap) #Allows for builing interactive HTML tools 
+library(spatstat) #Spatial statistics, not used here but included in case I change that 
+library(maptools) #Allows for manipulating maps and other geospatial tools
+library(sp) #Allows for manipulating spatial datasets as type Spatial, which is necissary for some wrangling not shown here
+library(raster) #Reads in raster data and has some analysis tools
+library(beepr) #Useful for long loading times
+library(RColorBrewer) #Good color palettes 
+library(stargazer) #For making tables of multiple linear regression, not used here but could create a table of the correlation at the end 
 
 ```
 
 
 ```{r, include = FALSE}
 tree_prioritization <- st_read(dsn = ".", layer = "geo_export_2e82f388-c013-45a0-bb25-522154013165") %>% 
-   st_transform(crs = 4326)
+   st_transform(crs = 4326) #standard WG 84 CRS 
 
 Wallercreek <- st_read(dsn = ".", layer = "WallerCrk") %>% 
    st_transform(crs = 4326) 
@@ -35,7 +35,7 @@ Wallercreek <- st_read(dsn = ".", layer = "WallerCrk") %>%
 Wallercensus <- st_read(dsn = ".", layer = "wallercensus") %>% 
    st_transform(crs = 4326) 
 
-plot(tree_prioritization, max.plot= 13)
+plot(tree_prioritization, max.plot= 13) #max.plot will show all of the columns in the new dataset
 beep(3)
 ```
 
@@ -44,7 +44,7 @@ beep(3)
 ```{r, include=FALSE}
 
 tree_prioritization_uhi = tree_prioritization %>% 
-  dplyr::select(uhi) %>% 
+  dplyr::select(uhi) %>% #there is a select function in the sf package, to avoid confusion make sure you specify you want the dplyr version or your html won't knit 
   mutate(Intensity = uhi)
 
 ```
@@ -70,30 +70,29 @@ tm_basemap("Esri.WorldImagery")+
   tm_borders(col = "black", lwd = 1)#+
   #tm_shape(tree_prioritization)+
   #tm_fill("air_qual", palette = air_palette, alpha = 0.7) To add aditional layers to the tmap file 
-
+#tmap requires you to both load the shape and then say how you want that shape to be represented. As an outline, etc. 
 ```
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 
 
 uhi_plot = ggplot(tree_prioritization_uhi)+
-  geom_sf(aes(fill = uhi))+
+  geom_sf(aes(fill = uhi))+ #Awesome ggplot function that lets you use the ggplot syntax to make maps 
   scale_fill_gradient("Comparitive Intensity", low = "oldlace", high = "red4")+
-  
   labs(x = "", y = "", title = "Comparitive Urban Heat Island of Census \nTracts Based off Land Surface Temperature")+
   geom_sf(data = Wallercreek, 
           fill = "NA", 
           color = "black", 
           size = 1)+
-  theme_minimal()+
-  coord_sf(datum=NA)
+  theme_minimal()+ #best option for clean maps in ggplot 
+  coord_sf(datum=NA) #This gets rid of those annoying lat and lon lines 
 
 uhi_plot
 ```
 
 ```{r, echo=FALSE}
 
-mapRange <- c(range(st_coordinates(Wallercreek)[,1]),range(st_coordinates(Wallercreek)[,2]))
+mapRange <- c(range(st_coordinates(Wallercreek)[,1]),range(st_coordinates(Wallercreek)[,2])) # this creates a range that only shows the waller creek watershed so I can trim the other maps with it. It's important to trim the existing maps if you're doing comparisions because loading in a new shapefile dataset will rescale the legend and could be deceptive 
 
 uhi_plot_waller = ggplot(tree_prioritization_uhi)+
   geom_sf(aes(fill = uhi))+
@@ -104,7 +103,7 @@ uhi_plot_waller = ggplot(tree_prioritization_uhi)+
           color = "black", 
           size = 1)+
   theme_minimal()+
-  coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])
+  coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)]) #This trims the map with the maprange from above
 
 uhi_plot_waller 
 ```
