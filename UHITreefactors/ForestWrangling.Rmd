@@ -8,7 +8,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-
 ```{r, include = FALSE, comment=" "}
 library(tidyverse) #Standard data analysis package
 library(sf) #Allows for the opening and analysis of spatial files 
@@ -25,7 +24,7 @@ library(stargazer) #For making tables of multiple linear regression, not used he
 ```
 
 
-```{r, include = FALSE}
+```{r, include=FALSE}
 tree_prioritization <- st_read(dsn = ".", layer = "geo_export_2e82f388-c013-45a0-bb25-522154013165") %>% 
    st_transform(crs = 4326) #standard WG 84 CRS 
 
@@ -49,6 +48,7 @@ tree_prioritization_uhi = tree_prioritization %>%
 
 ```
 
+
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 #tmap_mode("view")
 #tm_basemap("Esri.WorldStreetMap")+
@@ -67,14 +67,13 @@ tm_basemap("Esri.WorldImagery")+
   tm_fill("Intensity", alpha = 0.7)+
   tm_legend(title ="Relative Urban Heat Island Intensity by Census Tract")+
   tm_shape(Wallercreek)+
-  tm_borders(col = "black", lwd = 1)#+
-  #tm_shape(tree_prioritization)+
-  #tm_fill("air_qual", palette = air_palette, alpha = 0.7) To add aditional layers to the tmap file 
+  tm_borders(col = "black", lwd = 1)+
+  tm_shape(tree_prioritization)+
+  tm_fill("air_qual", palette = air_palette, alpha = 0.7) #To add aditional layers to the tmap file 
 #tmap requires you to both load the shape and then say how you want that shape to be represented. As an outline, etc. 
 ```
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
-
 
 uhi_plot = ggplot(tree_prioritization_uhi)+
   geom_sf(aes(fill = uhi))+ #Awesome ggplot function that lets you use the ggplot syntax to make maps 
