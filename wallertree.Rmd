@@ -1,0 +1,37 @@
+---
+title: "wallertreecount"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, include = FALSE, comment=" "}
+library(tidyverse)
+library(sf)
+library(leaflet)
+library(tmap)
+library(spatstat)
+library(maptools)
+library(sp)
+library(raster)
+library(beepr)
+library(RColorBrewer)
+library(stargazer)
+
+```
+
+
+```{r, include = FALSE}
+tree_waller <- st_read(dsn = ".", layer = "treeswallervector") %>% 
+   st_transform(crs = 4326) %>% 
+  filter(DN == 1)
+```
+
+
+```{r}
+plot(tree_waller)
+```
+
