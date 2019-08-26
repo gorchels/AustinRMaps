@@ -73,7 +73,7 @@ tm_basemap("Esri.WorldImagery")+
 
 ```
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r, include=FALSE}
 
 
 uhi_plot = ggplot(tree_prioritization_uhi)+
@@ -91,7 +91,7 @@ uhi_plot = ggplot(tree_prioritization_uhi)+
 uhi_plot
 ```
 
-```{r, echo=FALSE}
+```{r, include=FALSE}
 
 mapRange <- c(range(st_coordinates(Wallercreek)[,1]),range(st_coordinates(Wallercreek)[,2]))
 
@@ -121,7 +121,7 @@ tree_count_only = tree_count %>%
   as.data.frame() 
 ```
 
-```{r, echo=FALSE}
+```{r, include=FALSE}
 tree_plot = ggplot(tree_count)+
   geom_sf(aes(fill = tree_intensity))+
   scale_fill_gradient("Simulated Canopy Intensity", low = "lightyellow", high = "darkgreen", breaks=c(0,9.818678e-07),labels=c("Low","High"))+
@@ -136,7 +136,7 @@ tree_plot
 ```
 
 
-```{r, echo=FALSE}
+```{r, include=FALSE}
 tree_plot_waller = ggplot(tree_count)+
   geom_sf(aes(fill = tree_intensity))+
   scale_fill_gradient("Simulated Canopy Intensity", low = "lightyellow", high = "darkgreen", breaks=c(0,9.818678e-07),labels=c("Low","High"))+
@@ -151,7 +151,7 @@ tree_plot_waller
 
 ```
 
-```{r, echo=FALSE, comment=" "}
+```{r, include=FALSE, comment=" "}
 #uhi_regress = lm(uhi~tree_intensity, data = tree_count_only)
 #summary(uhi_regress)
 
