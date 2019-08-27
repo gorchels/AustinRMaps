@@ -66,9 +66,9 @@ tm_basemap("Esri.WorldImagery")+
   tm_fill("Intensity", alpha = 0.7)+
   tm_legend(title ="Relative Urban Heat Island Intensity by Census Tract")+
   tm_shape(Wallercreek)+
-  tm_borders(col = "black", lwd = 1)+
-  tm_shape(tree_prioritization)+
-  tm_fill("air_qual", palette = air_palette, alpha = 0.7) #To add aditional layers to the tmap file 
+  tm_borders(col = "black", lwd = 1)#+
+  #tm_shape(tree_prioritization)+
+  #tm_fill("air_qual", palette = air_palette, alpha = 0.7) #To add aditional layers to the tmap file 
 #tmap requires you to both load the shape and then say how you want that shape to be represented. As an outline, etc. 
 ```
 
