@@ -47,8 +47,7 @@ tree_prioritization_uhi = tree_prioritization %>%
 
 ```
 
-
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r, include=FALSE}
 #tmap_mode("view")
 #tm_basemap("Esri.WorldStreetMap")+
 #  tm_shape(tree_prioritization_uhi)+
@@ -72,7 +71,7 @@ tm_basemap("Esri.WorldImagery")+
 #tmap requires you to both load the shape and then say how you want that shape to be represented. As an outline, etc. 
 ```
 
-```{r, include=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 
 uhi_plot = ggplot(tree_prioritization_uhi)+
   geom_sf(aes(fill = uhi))+ #Awesome ggplot function that lets you use the ggplot syntax to make maps 
@@ -88,7 +87,7 @@ uhi_plot = ggplot(tree_prioritization_uhi)+
 uhi_plot
 ```
 
-```{r, include=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 
 mapRange <- c(range(st_coordinates(Wallercreek)[,1]),range(st_coordinates(Wallercreek)[,2])) # this creates a range that only shows the waller creek watershed so I can trim the other maps with it. It's important to trim the existing maps if you're doing comparisions because loading in a new shapefile dataset will rescale the legend and could be deceptive 
 
@@ -118,7 +117,7 @@ tree_count_only = tree_count %>%
   as.data.frame() 
 ```
 
-```{r, include=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 tree_plot = ggplot(tree_count)+
   geom_sf(aes(fill = tree_intensity))+
   scale_fill_gradient("Simulated Canopy Intensity", low = "lightyellow", high = "darkgreen", breaks=c(0,9.818678e-07),labels=c("Low","High"))+
@@ -133,7 +132,7 @@ tree_plot
 ```
 
 
-```{r, include=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 tree_plot_waller = ggplot(tree_count)+
   geom_sf(aes(fill = tree_intensity))+
   scale_fill_gradient("Simulated Canopy Intensity", low = "lightyellow", high = "darkgreen", breaks=c(0,9.818678e-07),labels=c("Low","High"))+
@@ -148,7 +147,7 @@ tree_plot_waller
 
 ```
 
-```{r, include=FALSE, comment=" "}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, comment=" "}
 #uhi_regress = lm(uhi~tree_intensity, data = tree_count_only)
 #summary(uhi_regress)
 
@@ -158,7 +157,7 @@ ggplot(tree_count_only)+
   labs(title = "Relationship Between Urban Heat Island and Simulated \nTree Canopy by Austin Census Tract", y = "Comparitive Land Surface Temperature Intensity", x = "Simulated Tree Intensity")+
   geom_smooth(method = "lm", aes(x = tree_intensity,y=uhi))+
   geom_text(x = 7.5e-07, y = 0.25, aes(label = "*** R Squared = 0.28"))+
-  scale_x_continuous()
+  scale_x_continuous(breaks=c(min(tree_count_only$tree_intensity), max(tree_count_only$tree_intensity)), labels=c("Low","High"))
 
 ```
 
