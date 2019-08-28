@@ -16,7 +16,7 @@ library(tmap) #Allows for building interactive HTML tools
 library(maptools) #Allows for more advanced map manipulating and other geospatial tools
 library(sp) #Allows for manipulating spatial datasets as type Spatial, which is necissary for some wrangling not shown here
 library(raster) #Reads in raster data and has some analysis tools
-library(beepr) #Useful for long loading times
+#library(beepr) #Useful for long loading times
 library(RColorBrewer) #Good color palettes 
 
 
@@ -34,7 +34,7 @@ Wallercensus <- st_read(dsn = ".", layer = "wallercensus") %>%
    st_transform(crs = 4326) 
 
 plot(tree_prioritization, max.plot= 13) #max.plot will show all of the columns in the new dataset
-beep(3)
+#beep(3)
 ```
 
 
