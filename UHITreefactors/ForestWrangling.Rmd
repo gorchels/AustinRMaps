@@ -33,7 +33,7 @@ Wallercreek <- st_read(dsn = ".", layer = "WallerCrk") %>%
 Wallercensus <- st_read(dsn = ".", layer = "wallercensus") %>% 
    st_transform(crs = 4326) 
 
-plot(tree_prioritization, max.plot= 13) #max.plot will show all of the columns in the new dataset
+#plot(tree_prioritization, max.plot= 13) #max.plot will show all of the columns in the new dataset
 #beep(3)
 ```
 

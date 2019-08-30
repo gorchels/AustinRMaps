@@ -1,0 +1,371 @@
+---
+title: "HTML All Layers"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, include = FALSE}
+library(tidyverse) #Standard data analysis package
+library(sf) #Allows for the opening and analysis of spatial files 
+library(leaflet) #Important for building interactive tmap tools
+library(tmap) #Allows for building interactive HTML tools 
+library(maptools) #Allows for more advanced map manipulating and other geospatial tools
+library(sp) #Allows for manipulating spatial datasets as type Spatial, which is necissary for some wrangling not shown here
+library(raster) #Reads in raster data and has some analysis tools
+#library(beepr) #Useful for long loading times
+library(RColorBrewer) #Good color palettes 
+library(janitor) #fixes names in poorly formatted csvs
+```
+
+```{r, include=FALSE}
+tree_prioritization <- st_read(dsn = ".", layer = "geo_export_2e82f388-c013-45a0-bb25-522154013165") %>% 
+   st_transform(crs = 4326) #standard WG 84 CRS 
+
+Wallercreek <- st_read(dsn = ".", layer = "WallerCrk") %>% 
+   st_transform(crs = 4326) 
+
+Wallercensus <- st_read(dsn = ".", layer = "wallercensus") %>% 
+   st_transform(crs = 4326) 
+```
+
+
+```{r, include = FALSE}
+census_tree = st_read(dsn = ".", layer = "countingtrees") %>%
+  st_transform(crs = 4326) %>% 
+  mutate(geoid = as.numeric(geoid10)) %>% 
+  dplyr::select(-geoid10)
+
+social_demo = read_csv("censustractdemos.csv") %>% 
+  mutate(geoid10 = Id2) %>% 
+  clean_names() %>% 
+  mutate(median_income = as.numeric(median_income))
+```
+
+
+```{r, include=FALSE}
+tree_raw = read_csv("tree_planting_prioritization.csv") %>% 
+  clean_names()
+
+tract_matching = full_join(census_tree, tree_raw, by="health")
+
+social_prior = full_join(tree_raw, social_demo, by = "geoid10") %>% 
+  filter(!is.na(id2)) %>% 
+  filter(!is.na(shape_area))%>% 
+  dplyr::select(-the_geom) 
+
+census_social = full_join(census_tree, social_prior, by="health") %>% 
+  dplyr::select(geoid10, air_qual.x, critical_p.x, district.x, ej.x, health, preserve.x, replenish.x, score.x, shape_area.x, uhi.x, water_qual.x, tree_sum, total_population, median_income, commuting, x62andover, white, black, native_am, asian, pacific_islander, latinx) %>% 
+  #filter(!is.na(geoid10.y)) %>% 
+  filter(!is.na(uhi.x)) %>% 
+  mutate(tree_intensity = tree_sum/shape_area.x)
+
+racial_makeup = census_social %>% 
+  mutate(white_p = white/total_population) %>% 
+  mutate(black_p = black/total_population) %>% 
+  mutate(latinx_p = latinx/total_population) %>% 
+  mutate(native_am_p = native_am/total_population) %>% 
+  mutate(asian_p = asian/total_population) %>% 
+  mutate(pacific_islander_p = pacific_islander/total_population) %>% 
+  mutate(nonwhite = black_p+asian_p+latinx_p+pacific_islander_p+native_am_p)
+
+tree_count = st_read(dsn = ".", layer = "countingtrees") %>% 
+   st_transform(crs = 4326)%>% 
+  mutate(tree_intensity = tree_sum/shape_area)
+```
+
+
+
+```{r, include=FALSE}
+UHI = tree_prioritization %>% 
+  mutate(Intensity = uhi)
+Trees = tree_count %>% 
+  mutate(Canopy = tree_sum)
+Income = census_social %>% 
+  mutate(MedianIncome = median_income)
+Race = racial_makeup %>% 
+  mutate(ProportionNonwhite = nonwhite)
+```
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#https://leaflet-extras.github.io/leaflet-providers/preview/ for leaflet options 
+uhi_palette = c("oldlace", "red4")
+tree_palette = c("lightyellow", "darkgreen")
+#income_palette = c("lightcyan", "orchid4")
+race_palette = c("white", "chocolate")
+
+tmap_mode("view")
+tm_basemap("OpenStreetMap")+
+  tm_legend(title ="Austin Census Tract Characteristics")+
+  tm_shape(Race)+
+  tm_fill("ProportionNonwhite", alpha = 0.8, palette = race_palette)+
+  #tm_shape(Income)+
+  #tm_fill("MedianIncome", alpha = 0.5, palette = income_palette)+
+  tm_shape(UHI)+
+  tm_fill("Intensity", alpha = 0.7, palette = uhi_palette)+
+  tm_shape(Trees)+
+  tm_fill("Canopy", alpha = 0.6, palette = tree_palette)+
+  tm_shape(Wallercreek)+
+  tm_borders(col = "black", lwd = 1)
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+uhi_plot = ggplot(tree_prioritization)+
+  geom_sf(aes(fill = uhi))+ #Awesome ggplot function that lets you use the ggplot syntax to make maps 
+  scale_fill_gradient("Comparitive Intensity", low = "oldlace", high = "red4")+
+  labs(x = "", y = "", title = "Comparitive Urban Heat Island of Census \nTracts Based off Land Surface Temperature")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+ #best option for clean maps in ggplot 
+  coord_sf(datum=NA) #This gets rid of those annoying lat and lon lines 
+
+uhi_plot
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+mapRange <- c(range(st_coordinates(Wallercreek)[,1]),range(st_coordinates(Wallercreek)[,2])) # this creates a range that only shows the waller creek watershed so I can trim the other maps with it. It's important to trim the existing maps if you're doing comparisions because loading in a new shapefile dataset will rescale the legend and could be deceptive 
+
+uhi_plot_waller = ggplot(tree_prioritization)+
+  geom_sf(aes(fill = uhi))+
+  scale_fill_gradient("Comparitive Intensity", low = "oldlace", high = "red4")+
+  labs(x = "", y = "", title = "Comparitive Urban Heat Island of Census \nTracts Based off Land Surface Temperature")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)]) #This trims the map with the maprange from above
+
+uhi_plot_waller 
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tree_plot = ggplot(tree_count)+
+  geom_sf(aes(fill = tree_intensity))+
+  scale_fill_gradient("Simulated Canopy Intensity", low = "lightyellow", high = "darkgreen", breaks=c(0,9.818678e-07),labels=c("Low","High"))+
+  labs(x = "", y = "", title = "Simulated Tree Intensity By Census Tract")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  coord_sf(datum=NA)
+tree_plot
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tree_plot_waller = ggplot(tree_count)+
+  geom_sf(aes(fill = tree_intensity))+
+  scale_fill_gradient("Simulated Canopy Intensity", low = "lightyellow", high = "darkgreen", breaks=c(0,9.818678e-07),labels=c("Low","High"))+
+  labs(x = "", y = "", title = "Simulated Tree Intensity By Census Tract")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])
+tree_plot_waller
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, comment=" "}
+#uhi_regress = lm(uhi~tree_intensity, data = tree_count_only)
+#summary(uhi_regress)
+
+ggplot(tree_count)+
+  geom_point(aes(x = tree_intensity,y=uhi))+
+  theme_classic()+
+  labs(title = "Relationship Between Urban Heat Island and Simulated \nTree Canopy by Austin Census Tract", y = "Comparitive Land Surface Temperature Intensity", x = "Simulated Tree Intensity")+
+  geom_smooth(method = "lm", aes(x = tree_intensity,y=uhi))+
+  geom_text(x = 7.5e-07, y = 0.25, aes(label = "*** R Squared = 0.28"))+
+  scale_x_continuous(breaks=c(min(tree_count$tree_intensity), max(tree_count$tree_intensity)), labels=c("Low","High"))
+
+```
+```{r, echo=FALSE}
+income_plot = ggplot(census_social)+
+  geom_sf(aes(fill = median_income))+
+  scale_fill_gradient("Income", low = "lightcyan", high = "orchid4", breaks=c(50000, 100000, 150000, 200000), labels=c("$50,000","$100,000","$150,000","$200,000"))+
+  #coord_sf(xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])+
+  labs(x = "", y = "", title = "Median Income in the 2017 American \nCommunity Survey by Census Tract")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  #coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])
+  coord_sf(datum=NA)
+
+income_plot 
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
+income_plot_waller = ggplot(census_social)+
+  geom_sf(aes(fill = median_income))+
+  scale_fill_gradient("Income", low = "lightcyan", high = "orchid4", breaks=c(50000, 100000, 150000, 200000), labels=c("$50,000","$100,000","$150,000","$200,000"))+
+  #coord_sf(xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])+
+  labs(x = "", y = "", title = "Median Income in the 2017 American \nCommunity Survey by Census Tract")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])
+  #coord_sf(datum=NA)
+
+income_plot_waller 
+```
+
+```{r, echo=FALSE, warning=FALSE}
+#income_regress = lm(median_income~tree_intensity, data = census_social)
+#summary(income_regress)
+
+ggplot(census_social)+
+  geom_point(aes(x = tree_intensity,y=median_income))+
+  theme_classic()+
+  labs(title = "Relationship Between Median Income and Simulated \nTree Canopy by Austin Census Tract", y = "Median Income in 2017", x = "Simulated Tree Intensity")+
+  geom_smooth(method = "lm", aes(x = tree_intensity,y=median_income))+
+  geom_text(x = 1.0e-07, y = 150000, aes(label = "*** R Squared = 0.30"))+
+  scale_x_continuous(breaks=c(min(census_social$tree_intensity), max(census_social$tree_intensity)), labels=c("Low","High"))+
+  scale_y_continuous(breaks=c(50000, 100000, 150000, 200000), labels=c("$50,000","$100,000","$150,000","$200,000"))
+
+```
+
+```{r, echo=FALSE, warning=FALSE}
+#income_uhi_regress = lm(uhi.x~median_income, data = census_social)
+#summary(income_uhi_regress)
+
+ggplot(census_social)+
+  geom_point(aes(x =median_income,y=uhi.x))+
+  theme_classic()+
+  labs(title = "Relationship Between Median Income and Land \nSurface Temperature by Austin Census Tract", x = "Median Income in 2017", y = "Comparative Land Surface Temperature")+
+  geom_smooth(method = "lm", aes(y = uhi.x,x=median_income))+
+  geom_text(y = 0.10, x = 50000, aes(label = "*** R Squared = 0.24"))+
+  scale_y_continuous()+
+  scale_x_continuous(breaks=c(50000, 100000, 150000, 200000), labels=c("$50,000","$100,000","$150,000","$200,000"))
+```
+
+```{r, echo=FALSE,warning=FALSE}
+race_plot = ggplot(racial_makeup)+
+  geom_sf(aes(fill = nonwhite))+
+  scale_fill_gradient("Proportion Non White", low = "white", high = "chocolate")+
+  #coord_sf(xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])+
+  labs(x = "", y = "", title = "Proportion Non White in the 2017 American \nCommunity Survey by Census Tract")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  #coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])
+  coord_sf(datum=NA)
+
+race_plot
+```
+
+```{r, echo=FALSE,warning=FALSE}
+race_plot_waller = ggplot(racial_makeup)+
+  geom_sf(aes(fill = nonwhite))+
+  scale_fill_gradient("Proportion Non White", low = "white", high = "chocolate")+
+  #coord_sf(xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])+
+  labs(x = "", y = "", title = "Proportion Non White in the 2017 American \nCommunity Survey by Census Tract")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  coord_sf(datum=NA,xlim = mapRange[c(1:2)], ylim = mapRange[c(3:4)])
+  #coord_sf(datum=NA)
+
+race_plot_waller
+```
+
+```{r, echo=FALSE, warning=FALSE}
+#race_regress = lm(nonwhite~tree_intensity, data = racial_makeup)
+#summary(race_regress)
+
+ggplot(racial_makeup)+
+  geom_point(aes(x = tree_intensity,y=nonwhite))+
+  theme_classic()+
+  labs(title = "Relationship Between Proportion Non White and Simulated \nTree Canopy by Austin Census Tract", y = "Proportion Non White in 2017", x = "Simulated Tree Intensity")+
+  geom_smooth(method = "lm", aes(x = tree_intensity,y=nonwhite))+
+  geom_text(x = 1.0e-07, y = 0.24, aes(label = "*** R Squared = 0.25"))+
+  scale_x_continuous(breaks=c(min(census_social$tree_intensity), max(census_social$tree_intensity)), labels=c("Low","High"))
+```
+
+```{r, include=FALSE}
+avg_tree = mean(tree_count$tree_intensity)
+value_per_tree = 56
+tree_value = tree_count %>% 
+  mutate(tree_disc=tree_intensity-avg_tree) %>% 
+  mutate(tree_disc_num = tree_disc*shape_area) %>% 
+  mutate(value_disc = tree_disc_num*value_per_tree) %>% 
+  mutate(tree_ben = tree_intensity*value_per_tree)
+```
+
+
+```{r, include=FALSE}
+tree_plot_benefit = ggplot(tree_value)+
+  geom_sf(aes(fill = tree_ben))+
+  scale_fill_gradient("Value",low = "oldlace", high = "deepskyblue4", breaks=c(min(tree_value$tree_ben),max(tree_value$tree_ben)),labels=c("$0","$34,000"))+
+  #scale_colour_brewer(palette = "PiYG")+
+  labs(x = "", y = "", title = "Tree Value Based on Simulated Tree \nIntensity By Census Tract")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  coord_sf(datum=NA)
+tree_plot_benefit
+```
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+tree_plot_value = ggplot(tree_value)+
+  geom_sf(aes(fill = value_disc))+
+  scale_fill_gradient2("Value Discrepency",low = "firebrick4", mid = "white", high = "deepskyblue4", breaks=c(min(tree_value$value_disc),0,max(tree_value$value_disc)),labels=c("-$9,000","$0","$15,000"))+
+  #scale_colour_brewer(palette = "PiYG")+
+  labs(x = "", y = "", title = "Tree Value Discrepency Based on Simulated Tree \nIntensity By Census Tract")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  coord_sf(datum=NA)
+tree_plot_value
+```
+
+```{r, include=FALSE}
+croppedcensus = st_read(dsn = ".", layer = "treewallerclipped") %>% 
+   st_transform(crs = 4326)
+tree_value_waller = croppedcensus %>%
+  mutate(tree_intensity = tree_sum/shape_area) %>% 
+  mutate(tree_disc=tree_intensity-avg_tree) %>% 
+  mutate(tree_disc_num = tree_disc*shape_area) %>% 
+  mutate(value_disc = tree_disc_num*value_per_tree)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+tree_plot_waller_value = ggplot(tree_value_waller)+
+  geom_sf(aes(fill = value_disc))+
+  scale_fill_gradient2("Value Discrepency",low = "firebrick4", mid = "white", high = "deepskyblue4", breaks=c(min(tree_value_waller$value_disc),0,max(tree_value_waller$value_disc)),labels=c("-$550","$0","$400"))+
+  #scale_colour_brewer(palette = "PiYG")+
+  labs(x = "", y = "", title = "Tree Value Discrepency Based on Simulated Tree \nIntensity By Census Tract")+
+  geom_sf(data = Wallercreek, 
+          fill = "NA", 
+          color = "black", 
+          size = 1)+
+  theme_minimal()+
+  coord_sf(datum=NA)
+tree_plot_waller_value
+```
